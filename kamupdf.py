@@ -1,7 +1,8 @@
 import sys
 import os
-from PIL import Image
-from PyPDF2 import PdfFileMerger
+from PIL import Image  # pip install pillow
+from PyPDF2 import PdfFileMerger  #pip install PyPDF2
+
 
 class folder2pdf:
     def __init__(self, path, debug=False):
@@ -54,10 +55,12 @@ class folder2pdf:
             raise SystemExit
 
     def chunks(self, filelist, size):
+        """ chunks the list into smaller chunks, so we don't use too many resources of the system"""
         n = max(1, size)
         return (filelist[i:i + n] for i in range(0, len(filelist), n))
 
     def merge(self, name):
+        """merge the pdf chunks"""
         print("Unindo PDFs...")
         merger = PdfFileMerger()
         for pdf in self.chunked:
