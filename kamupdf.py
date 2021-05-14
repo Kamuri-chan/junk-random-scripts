@@ -1,48 +1,51 @@
 import sys
 import os
-from PIL import Image  # pip install pillow
-from PyPDF2 import PdfFileMerger  #pip install PyPDF2
+from PIL import Image
+from PyPDF2 import PdfFileMerger
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class folder2pdf:
     def __init__(self, path, debug=False):
         self.path = path
-        self.all_var = {}
+        self.all_var = {}  # must rename this (1)
         self.index = 0
         self.total_files = 0
-        self.prog = 0
-        self.progress_x = None
-        self.chunked = []
-        self.debug = debug
+        self.prog = 0  # count the number of file processed
+        self.progress_x = None  # progress for the progress bar
+        self.chunked = []  # chunks the files if has more than 100 images
+        self.debug = debug  # this is for debug only
         self.main()
 
-    def sum_len_list(self, li):
-        s = 0
-        for i in li:
-            s += len(i)
-        return s
-
+    # -- progress bar, not really necessary --#
     def percentage(self, x, y):
+        """ calculates the percentage of completed pdfs"""
         return (100 * y) / x
 
-    # -- progress bar, not really necessary --#
     def startProgress(self, title):
-        print(title + ": [" + "-"*40 + "]" + chr(8)*41, flush=True, end="")
+        """ starts the progress bar"""
+        print(title + ": [" + "-" * 40 + "]" + chr(8) * 41, flush=True, end="")
         self.progress_x = 0
 
     def progress(self, x):
+        """ updates the progress bar"""
         x = int(x * 40 // 100)
         print("#" * (x - self.progress_x), flush=True, end="")
         self.progress_x = x
 
     def endProgress(self):
-        print("#" * (40 - self.progress_x) + "]", flush=True);
+        """ ends the progress bar"""
+        print("#" * (40 - self.progress_x) + "]", flush=True)
         self.progress_x = None
 
     def check_ext(self, filename):
+        """checks the extention of the file to see if
+        it's an supported image"""
         try:
             imageFilesExtentions = ["jpg", "png", "PNG", "JPG",
-                                        "jpeg", "JPEG", "ico", "ICO", "WEBP", "webp"]
+                                    "jpeg", "JPEG", "ico", "ICO",
+                                    "WEBP", "webp"]
             file_ext = filename.split(".")
             file_ext = file_ext[len(file_ext) - 1]
             if file_ext in imageFilesExtentions:
@@ -51,16 +54,17 @@ class folder2pdf:
                 return False
         except Exception as e:
             print("Erro! Envie o erro abaixo para @kamuridesu:")
-            print(e)
+            print(e.with_traceback())
             raise SystemExit
 
     def chunks(self, filelist, size):
-        """ chunks the list into smaller chunks, so we don't use too many resources of the system"""
+        """chunks the files as an generator to
+        avoid using all the system memory"""
         n = max(1, size)
         return (filelist[i:i + n] for i in range(0, len(filelist), n))
 
     def merge(self, name):
-        """merge the pdf chunks"""
+        """ merges the pdfs if chunked chunked"""
         print("Unindo PDFs...")
         merger = PdfFileMerger()
         for pdf in self.chunked:
@@ -72,8 +76,9 @@ class folder2pdf:
             os.remove(pdf)
 
     def img2pdf(self, pdfname, path, target):
+        """ converts the images to pdf"""
         if not self.debug:
-                self.startProgress(f"Convertendo {pdfname}")
+            self.startProgress(f"Convertendo {pdfname}")
         try:
             pdfname = os.path.join(target, pdfname) + ".pdf"
 
@@ -96,27 +101,31 @@ class folder2pdf:
                             im1 = Image.open(im1).convert("RGB")
                         else:
                             filepath = os.path.join(path, str(file))
-                            img_paths.append(Image.open(filepath).convert("RGB"))
+                            img_paths.append(
+                                Image.open(filepath).convert("RGB"))
                         self.prog += 1
                         if not self.debug:
-                                self.progress(self.percentage(self.total_files, self.prog))
+                            self.progress(
+                                self.percentage(self.total_files, self.prog))
                         i += 1
 
                 if isinstance(chunk, list):
                     if im1 is not None:
-                        im1.save(pdfname, "PDF", resolution=100.0, save_all=True, append_images=img_paths)
+                        im1.save(pdfname, "PDF", resolution=100.0,
+                                 save_all=True, append_images=img_paths)
                 else:
                     if im1 is not None:
-                        im1.save(pdf, "PDF", resolution=100.0, save_all=True, append_images=img_paths)
+                        im1.save(pdf, "PDF", resolution=100.0,
+                                 save_all=True, append_images=img_paths)
                         self.chunked.append(pdf)
                 z += 1
             if not self.debug:
-                    self.endProgress()
+                self.endProgress()
             if not isinstance(chunk, list):
                 self.merge(name=pdfname)
         except Exception as e:
             print("Erro! Envie o erro abaixo para @kamuridesu:")
-            print(e)
+            print(e.with_traceback())
             raise SystemExit
 
     def get_all_files_in_folder(self, folder):
@@ -138,7 +147,7 @@ class folder2pdf:
             return files, dirs
         except Exception as e:
             print("Erro! Envie o erro abaixo para @kamuridesu:")
-            print(e)
+            print(e.with_traceback())
             raise SystemExit
 
     def check_if_image(self, PATH, elems=[], full_path={}):
@@ -157,21 +166,22 @@ class folder2pdf:
             for k, v in self.all_var.items():
                 folders.append(v[1])
                 images.append(v[0])
-            
-            self.total_files = (self.sum_len_list(images))
+            for i in images:
+                self.total_files += len(i)
 
             i = 0
             for folder in folders:
                 filename = os.path.basename(folder)
                 lis = os.listdir(folder)
                 if len(lis) > 0:
-                    self.img2pdf(pdfname=filename, path=folder, target=folders[0])
+                    self.img2pdf(pdfname=filename, path=folder,
+                                 target=folders[0])
                     self.chunked = []
                 i += 1
             print("Finalizado com sucesso!")
         except Exception as e:
             print("Erro! Envie o erro abaixo para @kamuridesu:")
-            print(e)
+            print(e.with_traceback())
             raise SystemExit
 
 
@@ -179,10 +189,11 @@ if __name__ == "__main__":
     debug = False
     if debug:
         import pathlib
-        path = os.path.join(str(pathlib.Path(__file__).parent.absolute()), "mango")
+        path = os.path.join(
+            str(pathlib.Path(__file__).parent.absolute()), "mango")
     else:
-        path = input("Insira o caminho da pasta onde estão os arquivos para transformar em PDF: ")
-    
+        path = input(
+            "Insira o caminho da pasta onde estão os arquivos para transformar em PDF: ")
     if not os.path.isdir(path):
         print("Erro! Verifique se o caminho inserido é uma pasta!")
         raise SystemExit
