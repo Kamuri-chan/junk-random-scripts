@@ -1,8 +1,10 @@
+import traceback
 import sys
 import os
 from PIL import Image
 from PyPDF2 import PdfFileMerger
 from PIL import ImageFile
+import pathlib
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -16,6 +18,7 @@ class folder2pdf:
         self.progress_x = None  # progress for the progress bar
         self.chunked = []  # chunks the files if has more than 100 images
         self.debug = debug  # this is for debug only
+        self.errors = []
         self.main()
 
     # -- progress bar, not really necessary --#
@@ -52,9 +55,9 @@ class folder2pdf:
                 return True
             else:
                 return False
-        except Exception as e:
-            print("Erro! Envie o erro abaixo para @kamuridesu:")
-            print(e.with_traceback())
+        except Exception:
+            print("\nErro! Envie o erro abaixo para @kamuridesu:")
+            traceback.print_exc()
             raise SystemExit
 
     def chunks(self, filelist, size):
@@ -123,9 +126,9 @@ class folder2pdf:
                 self.endProgress()
             if not isinstance(chunk, list):
                 self.merge(name=pdfname)
-        except Exception as e:
-            print("Erro! Envie o erro abaixo para @kamuridesu:")
-            print(e.with_traceback())
+        except Exception:
+            print("\nErro! Envie o erro abaixo para @kamuridesu:")
+            traceback.print_exc()
             raise SystemExit
 
     def get_all_files_in_folder(self, folder):
@@ -139,18 +142,21 @@ class folder2pdf:
             for file_or_folder in new_listdir:
                 if os.path.isfile(file_or_folder):
                     if self.check_ext(file_or_folder):
-                        files.append(file_or_folder)
+                        if (os.stat(file_or_folder).st_size) != 0:
+                            files.append(file_or_folder)
+                        else:
+                            self.errors.append(str(pathlib.Path(file_or_folder).parent.absolute()))
                 else:
                     dirs.append(file_or_folder)
             self.all_var[self.index] = [files, folder]
             self.index += 1
             return files, dirs
-        except Exception as e:
-            print("Erro! Envie o erro abaixo para @kamuridesu:")
-            print(e.with_traceback())
+        except Exception:
+            print("\nErro! Envie o erro abaixo para @kamuridesu:")
+            traceback.print_exc()
             raise SystemExit
 
-    def check_if_image(self, PATH, elems=[], full_path={}):
+    def check_if_image(self, PATH, elems=[]):
         files = []
         results = self.get_all_files_in_folder(PATH)
         files.append(results[0])
@@ -171,24 +177,28 @@ class folder2pdf:
 
             i = 0
             for folder in folders:
-                filename = os.path.basename(folder)
-                lis = os.listdir(folder)
-                if len(lis) > 0:
-                    self.img2pdf(pdfname=filename, path=folder,
-                                 target=folders[0])
-                    self.chunked = []
-                i += 1
+                if folder not in self.errors:
+                    filename = os.path.basename(folder)
+                    lis = os.listdir(folder)
+                    if len(lis) > 0:
+                        self.img2pdf(pdfname=filename, path=folder,
+                                     target=folders[0])
+                        self.chunked = []
+                    i += 1
             print("Finalizado com sucesso!")
-        except Exception as e:
-            print("Erro! Envie o erro abaixo para @kamuridesu:")
-            print(e.with_traceback())
+            if len(self.errors) > 0:
+                print("Não foi possível converter as seguintes pastas:")
+                for fol in self.errors:
+                    print(fol)
+        except Exception:
+            print("\nErro! Envie o erro abaixo para @kamuridesu:")
+            traceback.print_exc()
             raise SystemExit
 
 
 if __name__ == "__main__":
     debug = False
     if debug:
-        import pathlib
         path = os.path.join(
             str(pathlib.Path(__file__).parent.absolute()), "mango")
     else:
